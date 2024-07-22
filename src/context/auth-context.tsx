@@ -3,6 +3,8 @@ import { AuthorizationObjectSchema, IAuthorizationObject } from '../types/auth';
 import instance from '../api/axios/axios';
 import { safeJSONParse } from '../helpers';
 
+const AUTH_STORAGE = 'authorization';
+
 type AuthContextProps = {
   accessToken?: IAuthorizationObject['accessToken'];
   email?: IAuthorizationObject['email'];
@@ -16,8 +18,6 @@ const AuthContext = React.createContext<AuthContextProps>({
   login: () => {},
   logout: () => {},
 });
-
-const AUTH_STORAGE = 'authorization';
 
 const retrieveStoredAuthorization = (): IAuthorizationObject | null => {
   const storedAuthorization = localStorage.getItem(AUTH_STORAGE);
@@ -36,20 +36,20 @@ const retrieveStoredAuthorization = (): IAuthorizationObject | null => {
 };
 
 export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
-  const [authorization, setAuthorization] = useState<IAuthorizationObject | null>(retrieveStoredAuthorization());
+  const [authorization, setAuthorization] = useState<IAuthorizationObject | null>(retrieveStoredAuthorization);
 
   useLayoutEffect(() => {
     if (!authorization?.accessToken) return;
 
     // Add authorization header to all axios requests
     const requestInterceptor = instance.interceptors.request.use((config) => {
-      config.headers['Authorization'] = `Bearer ${authorization.accessToken}`;
+      config.headers['Authorization'] = authorization.accessToken;
       return config;
     });
 
-    // Handle logout on 401 response
+    // Handle logout on 401/403 response
     const responseInterceptor = instance.interceptors.response.use((response) => {
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
         logoutHandler();
       }
       return response;
